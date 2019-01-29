@@ -1,0 +1,45 @@
+# - '1.9'
+# - '2.1'
+# - '2.2'
+# - '2.3'
+# - '2.4'
+# - '2.5'
+# - 'ruby-head'
+# - 'jruby'
+
+version: 2
+workflows:
+  version: 2
+  test:
+    jobs:
+      - test-1.9
+      - test-2.1
+      - test-2.7
+jobs:
+  test-1.9: &test-template
+    docker:
+      - image: circleci/ruby:1.9
+    working_directory: ~/repo
+    steps:
+      - checkout
+      - run:
+          name: Install Fish
+          command: |
+            echo "deb http://ftp.debian.org/debian jessie-backports main" | sudo tee /etc/apt/sources.list.d/jessie-backports.list
+            sudo apt-get update
+            sudo apt-get -t jessie-backports install fish
+      - run: # Install Ruby dependencies
+          name: Bundle Install
+          command: bundle check || bundle install
+      - run:
+          name: Run rspec in parallel
+          command: |
+            bundle exec rspec --profile 10 \
+                              --format RspecJunitFormatter \
+                              --out test_results/rspec.xml \
+                              --format progress \
+                              $(circleci tests glob "spec/**/*_spec.rb" | circleci tests split --split-by=timings)
+  test-2.1:
+    <<: *test-template
+    docker:
+      - image: circleci/ruby:2.1
